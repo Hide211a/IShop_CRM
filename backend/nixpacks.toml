@@ -1,0 +1,9 @@
+# Railway/Nixpacks: встановлюємо devDependencies для збірки, prisma CLI для старту
+[variables]
+NIXPACKS_NODE_INSTALL_DEV_DEPS = "true"
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run start:prod"
