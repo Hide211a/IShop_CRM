@@ -1,0 +1,47 @@
+{
+  "name": "ishop-rivne-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "start:prod": "prisma db push && prisma db seed && node dist/index.js",
+    "postinstall": "node scripts/prepare-schema.mjs && prisma generate",
+    "db:push": "node scripts/prepare-schema.mjs && prisma db push",
+    "db:seed": "prisma db seed",
+    "db:setup": "node scripts/prepare-schema.mjs && prisma db push && prisma db seed",
+    "db:studio": "prisma studio",
+    "test": "vitest run"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.8.2",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "tsx": "^4.19.4",
+    "zod": "^3.25.28"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.18",
+    "@types/express": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.15.21",
+    "@types/supertest": "^7.2.0",
+    "prisma": "^6.8.2",
+    "supertest": "^7.2.2",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

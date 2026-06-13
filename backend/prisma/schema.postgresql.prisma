@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  DIRECTOR
+}
+
+enum DocumentType {
+  RECEIPT
+  EXPENSE
+  INVENTORY
+  RESERVATION
+}
+
+enum DocumentStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+enum SerialStatus {
+  IN_STOCK
+  SOLD
+  RESERVED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  fullName     String
+  role         Role
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  documents    Document[]
+  productChanges ProductChangeLog[]
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  products    Product[]
+  createdAt   DateTime  @default(now())
+}
+
+model Brand {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model Supplier {
+  id           String     @id @default(cuid())
+  name         String
+  contactPhone String?
+  contactEmail String?
+  address      String?
+  documents    Document[]
+  createdAt    DateTime   @default(now())
+}
+
+model Product {
+  id            String          @id @default(cuid())
+  sku           String          @unique
+  name          String
+  description   String?
+  categoryId    String
+  brandId       String
+  purchasePrice Decimal
+  salePrice     Decimal
+  minStock      Int             @default(0)
+  trackSerial   Boolean         @default(false)
+  active        Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  category      Category        @relation(fields: [categoryId], references: [id])
+  brand         Brand           @relation(fields: [brandId], references: [id])
+  documentLines DocumentLine[]
+  stockBalance  StockBalance?
+  movements     StockMovement[]
+  serials       ProductSerial[]
+  changeLogs    ProductChangeLog[]
+
+  @@index([categoryId])
+  @@index([brandId])
+}
+
+model Document {
+  id         String         @id @default(cuid())
+  number     String         @unique
+  type       DocumentType
+  status     DocumentStatus @default(DRAFT)
+  date       DateTime       @default(now())
+  notes      String?
+  buyerName  String?
+  buyerPhone String?
+  supplierId String?
+  createdById String
+  postedAt   DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  supplier   Supplier?      @relation(fields: [supplierId], references: [id])
+  createdBy  User           @relation(fields: [createdById], references: [id])
+  lines      DocumentLine[]
+  movements  StockMovement[]
+
+  @@index([type, status])
+  @@index([date])
+}
+
+model DocumentLine {
+  id         String   @id @default(cuid())
+  documentId String
+  productId  String
+  quantity   Int
+  unitPrice  Decimal
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@index([documentId])
+  @@index([productId])
+}
+
+model StockBalance {
+  productId String  @id
+  quantity  Int     @default(0)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductSerial {
+  id           String       @id @default(cuid())
+  productId    String
+  imei         String       @unique
+  status       SerialStatus @default(IN_STOCK)
+  documentId   String?
+  createdAt    DateTime     @default(now())
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, status])
+}
+
+model StockMovement {
+  id             String       @id @default(cuid())
+  productId      String
+  documentId     String
+  documentType   DocumentType
+  quantityChange Int
+  balanceAfter   Int
+  createdAt      DateTime     @default(now())
+  product        Product      @relation(fields: [productId], references: [id])
+  document       Document     @relation(fields: [documentId], references: [id])
+
+  @@index([productId, createdAt])
+  @@index([documentId])
+}
+
+model ProductChangeLog {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String
+  action    String
+  summary   String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([productId, createdAt])
+  @@index([createdAt])
+}
