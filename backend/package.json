@@ -6,7 +6,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "start:prod": "prisma db push && prisma db seed && node dist/index.js",
+    "start:prod": "node scripts/start-prod.mjs",
     "postinstall": "node scripts/prepare-schema.mjs && prisma generate",
     "db:push": "node scripts/prepare-schema.mjs && prisma db push",
     "db:seed": "prisma db seed",

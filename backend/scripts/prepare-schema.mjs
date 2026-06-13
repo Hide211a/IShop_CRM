@@ -8,6 +8,7 @@ const prismaDir = join(root, "prisma");
 const databaseUrl = process.env.DATABASE_URL ?? "";
 const usePostgres =
   process.env.USE_POSTGRES === "1" ||
+  process.env.NODE_ENV === "production" ||
   databaseUrl.startsWith("postgres://") ||
   databaseUrl.startsWith("postgresql://");
 
