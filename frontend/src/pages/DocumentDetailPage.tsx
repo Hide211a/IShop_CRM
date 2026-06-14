@@ -32,6 +32,10 @@ import type { DocumentDetail, LineSerialPost, Product, ProductSerial, Supplier }
 import { documentStatusLabels, documentTypeLabels } from "../utils/labels";
 import { hasStockIssues, lineStockWarning } from "../utils/stockValidation";
 import { validateSerialsForPost } from "../utils/serialValidation";
+import {
+  validateDocumentForm,
+  type DocumentFieldErrors,
+} from "../utils/documentValidation";
 
 interface LineRow {
   productId: string;
@@ -54,6 +58,7 @@ export function DocumentDetailPage() {
   const [editBuyerName, setEditBuyerName] = useState("");
   const [editBuyerPhone, setEditBuyerPhone] = useState("");
   const [editLines, setEditLines] = useState<LineRow[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<DocumentFieldErrors>({});
 
   const { data: doc, isLoading } = useQuery({
     queryKey: ["document", id],
@@ -140,18 +145,38 @@ export function DocumentDetailPage() {
     );
     setEditing(true);
     setError("");
+    setFieldErrors({});
+  };
+
+  const submitSave = () => {
+    if (!doc) return;
+    const validation = validateDocumentForm({
+      type: doc.type,
+      supplierId: editSupplierId,
+      buyerName: editBuyerName,
+      buyerPhone: editBuyerPhone,
+      lines: editLines,
+    });
+    if (!validation.ok) {
+      setFieldErrors(validation.fields);
+      setError(validation.message);
+      return;
+    }
+    setFieldErrors({});
+    setError("");
+    save.mutate();
   };
 
   const save = useMutation({
     mutationFn: () =>
       api.put(`/documents/${id}`, {
-        notes: editNotes || undefined,
-        supplierId: doc?.type === "RECEIPT" && editSupplierId ? editSupplierId : undefined,
+        notes: editNotes.trim() || undefined,
+        supplierId: doc?.type === "RECEIPT" ? editSupplierId : undefined,
         buyerName:
-          (doc?.type === "EXPENSE" || doc?.type === "RESERVATION") && editBuyerName
-            ? editBuyerName
+          doc?.type === "EXPENSE" || doc?.type === "RESERVATION"
+            ? editBuyerName.trim()
             : undefined,
-        buyerPhone: editBuyerPhone || undefined,
+        buyerPhone: editBuyerPhone.trim() || undefined,
         lines: editLines
           .filter((l) => l.productId)
           .map((l) => ({
@@ -368,20 +393,52 @@ export function DocumentDetailPage() {
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
             <TextField label="Примітки" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} multiline />
             {doc.type === "RECEIPT" && (
-              <FormControl>
+              <FormControl required error={!!fieldErrors.supplierId}>
                 <InputLabel>Постачальник</InputLabel>
-                <Select value={editSupplierId} label="Постачальник" onChange={(e) => setEditSupplierId(e.target.value)}>
-                  <MenuItem value="">—</MenuItem>
+                <Select
+                  value={editSupplierId}
+                  label="Постачальник"
+                  onChange={(e) => {
+                    setEditSupplierId(e.target.value);
+                    setFieldErrors((prev) => ({ ...prev, supplierId: undefined }));
+                  }}
+                >
+                  <MenuItem value="">Оберіть постачальника</MenuItem>
                   {suppliers?.map((s) => (
                     <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
                   ))}
                 </Select>
+                {fieldErrors.supplierId && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                    {fieldErrors.supplierId}
+                  </Typography>
+                )}
               </FormControl>
             )}
             {(doc.type === "EXPENSE" || doc.type === "RESERVATION") && (
               <>
-                <TextField label="ПІБ покупця" value={editBuyerName} onChange={(e) => setEditBuyerName(e.target.value)} />
-                <TextField label="Телефон" value={editBuyerPhone} onChange={(e) => setEditBuyerPhone(e.target.value)} />
+                <TextField
+                  required
+                  label="ПІБ покупця"
+                  value={editBuyerName}
+                  error={!!fieldErrors.buyerName}
+                  helperText={fieldErrors.buyerName}
+                  onChange={(e) => {
+                    setEditBuyerName(e.target.value);
+                    setFieldErrors((prev) => ({ ...prev, buyerName: undefined }));
+                  }}
+                />
+                <TextField
+                  required={doc.type === "RESERVATION"}
+                  label="Телефон"
+                  value={editBuyerPhone}
+                  error={!!fieldErrors.buyerPhone}
+                  helperText={fieldErrors.buyerPhone ?? (doc.type === "EXPENSE" ? "Необов'язково" : undefined)}
+                  onChange={(e) => {
+                    setEditBuyerPhone(e.target.value);
+                    setFieldErrors((prev) => ({ ...prev, buyerPhone: undefined }));
+                  }}
+                />
               </>
             )}
           </Box>
@@ -418,8 +475,8 @@ export function DocumentDetailPage() {
               <Button
                 size="small"
                 variant="contained"
-                onClick={() => save.mutate()}
-                disabled={save.isPending || editStockBlocked || editLines.every((l) => !l.productId)}
+                onClick={submitSave}
+                disabled={save.isPending || editStockBlocked}
               >
                 Зберегти
               </Button>
@@ -447,10 +504,11 @@ export function DocumentDetailPage() {
                 {editLines.map((line, i) => {
                   const stock = line.productId ? (stockByProductId.get(line.productId) ?? 0) : 0;
                   const warn = line.productId ? lineStockWarning(doc.type, line.quantity, stock) : null;
+                  const lineError = fieldErrors.lineItems?.[i];
                   return (
-                    <TableRow key={i} sx={warn ? { bgcolor: alpha("#EF4444", 0.06) } : undefined}>
+                    <TableRow key={i} sx={warn || lineError ? { bgcolor: alpha("#EF4444", 0.06) } : undefined}>
                       <TableCell>
-                        <FormControl fullWidth size="small" error={!!warn}>
+                        <FormControl fullWidth size="small" error={!!warn || !!lineError?.productId} required>
                           <Select
                             value={line.productId}
                             displayEmpty
@@ -470,8 +528,10 @@ export function DocumentDetailPage() {
                         <TextField
                           size="small"
                           type="number"
+                          required
                           value={line.quantity}
-                          error={!!warn}
+                          error={!!warn || !!lineError?.quantity}
+                          helperText={lineError?.quantity}
                           onChange={(e) => updateEditLine(i, { quantity: Number(e.target.value) })}
                           sx={{ width: 100 }}
                         />
@@ -480,7 +540,10 @@ export function DocumentDetailPage() {
                         <TextField
                           size="small"
                           type="number"
+                          required={doc.type !== "INVENTORY"}
                           value={line.unitPrice}
+                          error={!!lineError?.unitPrice}
+                          helperText={lineError?.unitPrice}
                           onChange={(e) => updateEditLine(i, { unitPrice: Number(e.target.value) })}
                           sx={{ width: 120 }}
                         />
@@ -674,6 +737,21 @@ export function DocumentDetailPage() {
               variant="contained"
               color="primary"
               onClick={() => {
+                const headerValidation = validateDocumentForm({
+                  type: doc.type,
+                  supplierId: doc.supplierId ?? "",
+                  buyerName: doc.buyerName ?? "",
+                  buyerPhone: doc.buyerPhone ?? "",
+                  lines: doc.lines.map((line) => ({
+                    productId: line.productId,
+                    quantity: line.quantity,
+                    unitPrice: Number(line.unitPrice),
+                  })),
+                });
+                if (!headerValidation.ok) {
+                  setError(headerValidation.message);
+                  return;
+                }
                 const err = validateSerialsForPost(doc, imeiInputs, serialSelections);
                 if (err && trackSerialLines.length > 0) {
                   setError(err);

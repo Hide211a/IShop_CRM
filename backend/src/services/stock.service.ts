@@ -7,6 +7,7 @@ import {
   type DocumentLine,
 } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
+import { validateDocumentReadyToPost } from "./documentValidation.js";
 
 export class StockError extends Error {
   constructor(message: string) {
@@ -56,6 +57,11 @@ export async function postDocument(
     }
     if (document.lines.length === 0) {
       throw new StockError("Додайте хоча б один рядок до документа");
+    }
+
+    const headerError = validateDocumentReadyToPost(document);
+    if (headerError) {
+      throw new StockError(headerError);
     }
 
     const serialMap = new Map(lineSerials.map((s) => [s.lineId, s]));

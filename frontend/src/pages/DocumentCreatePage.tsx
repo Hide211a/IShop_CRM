@@ -26,6 +26,10 @@ import { DataTable } from "../components/DataTable";
 import type { DocumentType, Product, Supplier } from "../types";
 import { documentTypeLabels } from "../utils/labels";
 import { hasStockIssues, lineStockWarning } from "../utils/stockValidation";
+import {
+  validateDocumentForm,
+  type DocumentFieldErrors,
+} from "../utils/documentValidation";
 
 interface LineRow {
   productId: string;
@@ -44,6 +48,7 @@ export function DocumentCreatePage() {
   const [buyerPhone, setBuyerPhone] = useState("");
   const [lines, setLines] = useState<LineRow[]>([{ productId: "", quantity: 1, unitPrice: 0 }]);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<DocumentFieldErrors>({});
 
   const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => api.get<Product[]>("/products").then((r) => r.data) });
   const { data: suppliers } = useQuery({ queryKey: ["suppliers"], queryFn: () => api.get<Supplier[]>("/directories/suppliers").then((r) => r.data), enabled: type === "RECEIPT" });
@@ -69,19 +74,40 @@ export function DocumentCreatePage() {
     stockByProductId,
   );
 
+  const submitCreate = () => {
+    const validation = validateDocumentForm({
+      type,
+      supplierId,
+      buyerName,
+      buyerPhone,
+      lines,
+    });
+    if (!validation.ok) {
+      setFieldErrors(validation.fields);
+      setError(validation.message);
+      return;
+    }
+    setFieldErrors({});
+    setError("");
+    create.mutate();
+  };
+
   const create = useMutation({
     mutationFn: () =>
       api.post("/documents", {
         type,
-        notes: notes || undefined,
-        supplierId: type === "RECEIPT" && supplierId ? supplierId : undefined,
-        buyerName: (type === "EXPENSE" || type === "RESERVATION") && buyerName ? buyerName : undefined,
-        buyerPhone: buyerPhone || undefined,
-        lines: lines.filter((l) => l.productId).map((l) => ({
-          productId: l.productId,
-          quantity: type === "INVENTORY" ? l.quantity : Math.max(1, l.quantity),
-          unitPrice: l.unitPrice,
-        })),
+        notes: notes.trim() || undefined,
+        supplierId: type === "RECEIPT" ? supplierId : undefined,
+        buyerName:
+          type === "EXPENSE" || type === "RESERVATION" ? buyerName.trim() : undefined,
+        buyerPhone: buyerPhone.trim() || undefined,
+        lines: lines
+          .filter((l) => l.productId)
+          .map((l) => ({
+            productId: l.productId,
+            quantity: type === "INVENTORY" ? l.quantity : Math.max(1, l.quantity),
+            unitPrice: l.unitPrice,
+          })),
       }),
     onSuccess: (res) => navigate(`/documents/${res.data.id}`),
     onError: (e: unknown) => {
@@ -132,17 +158,50 @@ export function DocumentCreatePage() {
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
           <TextField label="Примітки" value={notes} onChange={(e) => setNotes(e.target.value)} multiline />
           {type === "RECEIPT" && (
-            <FormControl>
+            <FormControl required error={!!fieldErrors.supplierId}>
               <InputLabel>Постачальник</InputLabel>
-              <Select value={supplierId} label="Постачальник" onChange={(e) => setSupplierId(e.target.value)}>
+              <Select
+                value={supplierId}
+                label="Постачальник"
+                onChange={(e) => {
+                  setSupplierId(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, supplierId: undefined }));
+                }}
+              >
+                <MenuItem value="">Оберіть постачальника</MenuItem>
                 {suppliers?.map((s) => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
               </Select>
+              {fieldErrors.supplierId && (
+                <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                  {fieldErrors.supplierId}
+                </Typography>
+              )}
             </FormControl>
           )}
           {(type === "EXPENSE" || type === "RESERVATION") && (
             <>
-              <TextField label="ПІБ покупця" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} />
-              <TextField label="Телефон" value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} />
+              <TextField
+                required
+                label="ПІБ покупця"
+                value={buyerName}
+                error={!!fieldErrors.buyerName}
+                helperText={fieldErrors.buyerName}
+                onChange={(e) => {
+                  setBuyerName(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, buyerName: undefined }));
+                }}
+              />
+              <TextField
+                required={type === "RESERVATION"}
+                label="Телефон"
+                value={buyerPhone}
+                error={!!fieldErrors.buyerPhone}
+                helperText={fieldErrors.buyerPhone ?? (type === "EXPENSE" ? "Необов'язково" : undefined)}
+                onChange={(e) => {
+                  setBuyerPhone(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, buyerPhone: undefined }));
+                }}
+              />
             </>
           )}
         </Box>
@@ -171,10 +230,11 @@ export function DocumentCreatePage() {
             {lines.map((line, i) => {
               const stock = line.productId ? (stockByProductId.get(line.productId) ?? 0) : 0;
               const warn = line.productId ? lineStockWarning(type, line.quantity, stock) : null;
+              const lineError = fieldErrors.lineItems?.[i];
               return (
-              <TableRow key={i} sx={warn ? { bgcolor: alpha("#EF4444", 0.06) } : undefined}>
+              <TableRow key={i} sx={warn || lineError ? { bgcolor: alpha("#EF4444", 0.06) } : undefined}>
                 <TableCell>
-                  <FormControl fullWidth size="small" error={!!warn}>
+                  <FormControl fullWidth size="small" error={!!warn || !!lineError?.productId} required>
                     <Select value={line.productId} displayEmpty onChange={(e) => updateLine(i, { productId: e.target.value })}>
                       <MenuItem value="">Оберіть товар</MenuItem>
                       {products?.map((p) => (
@@ -190,19 +250,35 @@ export function DocumentCreatePage() {
                       {warn}
                     </Typography>
                   )}
+                  {lineError?.productId && !warn && (
+                    <Typography variant="caption" color="error" sx={{ display: "block", mt: 0.5 }}>
+                      {lineError.productId}
+                    </Typography>
+                  )}
                 </TableCell>
                 <TableCell>
                   <TextField
                     size="small"
                     type="number"
+                    required
                     value={line.quantity}
-                    error={!!warn}
+                    error={!!warn || !!lineError?.quantity}
+                    helperText={lineError?.quantity}
                     onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })}
                     sx={{ width: 100 }}
                   />
                 </TableCell>
                 <TableCell>
-                  <TextField size="small" type="number" value={line.unitPrice} onChange={(e) => updateLine(i, { unitPrice: Number(e.target.value) })} sx={{ width: 120 }} />
+                  <TextField
+                    size="small"
+                    type="number"
+                    required={type !== "INVENTORY"}
+                    value={line.unitPrice}
+                    error={!!lineError?.unitPrice}
+                    helperText={lineError?.unitPrice}
+                    onChange={(e) => updateLine(i, { unitPrice: Number(e.target.value) })}
+                    sx={{ width: 120 }}
+                  />
                 </TableCell>
                 <TableCell>
                   <IconButton size="small" onClick={() => setLines(lines.filter((_, j) => j !== i))} disabled={lines.length === 1}><DeleteIcon /></IconButton>
@@ -270,7 +346,7 @@ export function DocumentCreatePage() {
         )}
         <Button
           variant="contained"
-          onClick={() => create.mutate()}
+          onClick={submitCreate}
           disabled={create.isPending || stockBlocked}
         >
           Створити чернетку

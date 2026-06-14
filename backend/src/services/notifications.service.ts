@@ -34,6 +34,9 @@ export async function getNotifications() {
       : OVERDUE_DAYS,
   }));
 
+  const alertCount =
+    (lowStock.length > 0 ? 1 : 0) + (overdue.length > 0 ? 1 : 0);
+
   return {
     lowStockCount: lowStock.length,
     lowStockPreview: lowStock.slice(0, 3).map((p) => ({
@@ -45,6 +48,6 @@ export async function getNotifications() {
     })),
     overdueReservationCount: overdue.length,
     overdueReservations: overdue,
-    totalCount: lowStock.length + overdue.length,
+    totalCount: alertCount,
   };
 }

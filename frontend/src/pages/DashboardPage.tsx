@@ -69,12 +69,6 @@ export function DashboardPage() {
         </Grid>
       </Grid>
 
-      {data.lowStockCount > 0 && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          Увага: {data.lowStockCount} позицій потребують поповнення запасу
-        </Alert>
-      )}
-
       <ContentCard title="Останні проведені документи">
         {data.recentDocuments.length === 0 ? (
           <EmptyState title="Немає документів" />

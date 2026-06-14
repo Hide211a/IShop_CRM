@@ -75,15 +75,6 @@ export function ManagerDashboardPage() {
         }
       />
 
-      {data.lowStockCount > 0 && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          Потрібно замовити: {data.lowStockCount} позицій нижче мінімального залишку.{" "}
-          <Button component={Link} to="/documents/new?type=RECEIPT" size="small" sx={{ ml: 1 }}>
-            Створити надходження
-          </Button>
-        </Alert>
-      )}
-
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={{ xs: 6, md: 3 }} sx={{ display: "flex" }}>
           <StatCard

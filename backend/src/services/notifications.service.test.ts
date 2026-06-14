@@ -9,6 +9,12 @@ describe("notifications.service", () => {
     expect(typeof data.overdueReservationCount).toBe("number");
     expect(Array.isArray(data.overdueReservations)).toBe(true);
     expect(typeof data.totalCount).toBe("number");
+    expect(data.totalCount).toBeLessThanOrEqual(2);
+    expect(
+      data.totalCount,
+    ).toBe(
+      (data.lowStockCount > 0 ? 1 : 0) + (data.overdueReservationCount > 0 ? 1 : 0),
+    );
   });
 });
 

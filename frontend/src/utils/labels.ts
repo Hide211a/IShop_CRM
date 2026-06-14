@@ -8,7 +8,7 @@ export const roleLabels: Record<Role, string> = {
 
 export const documentTypeLabels: Record<DocumentType, string> = {
   RECEIPT: "Надходження",
-  EXPENSE: "Витрата / продаж",
+  EXPENSE: "Продаж",
   INVENTORY: "Інвентаризація",
   RESERVATION: "Резерв",
 };

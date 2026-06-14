@@ -10,33 +10,16 @@ import {
 } from "../services/reservation.service.js";
 import { postDocument, StockError } from "../services/stock.service.js";
 import { unpostDocument } from "../services/unpost.service.js";
+import {
+  createDocumentSchema,
+  formatZodMessage,
+  parseUpdateDocumentBody,
+} from "../services/documentValidation.js";
 import { routeParam } from "../utils/routeParam.js";
 
 const router = Router();
 
 router.use(authenticate);
-
-const lineSchema = z.object({
-  productId: z.string(),
-  quantity: z.number().int().positive(),
-  unitPrice: z.number().nonnegative(),
-});
-
-const inventoryLineSchema = z.object({
-  productId: z.string(),
-  quantity: z.number().int().min(0),
-  unitPrice: z.number().nonnegative().default(0),
-});
-
-const documentSchema = z.object({
-  type: z.nativeEnum(DocumentType),
-  date: z.coerce.date().optional(),
-  notes: z.string().optional(),
-  buyerName: z.string().optional(),
-  buyerPhone: z.string().optional(),
-  supplierId: z.string().optional(),
-  lines: z.array(lineSchema).min(1),
-});
 
 async function nextDocumentNumber(type: DocumentType): Promise<string> {
   const prefix: Record<DocumentType, string> = {
@@ -209,19 +192,9 @@ router.post(
   "/",
   requireRoles("MANAGER", "ADMIN"),
   async (req, res) => {
-    const isInventory = req.body?.type === DocumentType.INVENTORY;
-    const parsed = isInventory
-      ? z
-          .object({
-            type: z.literal(DocumentType.INVENTORY),
-            date: z.coerce.date().optional(),
-            notes: z.string().optional(),
-            lines: z.array(inventoryLineSchema).min(1),
-          })
-          .safeParse(req.body)
-      : documentSchema.safeParse(req.body);
+    const parsed = createDocumentSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ message: "Невірні дані", errors: parsed.error.flatten() });
+      res.status(400).json({ message: formatZodMessage(parsed.error), errors: parsed.error.flatten() });
       return;
     }
 
@@ -255,21 +228,6 @@ router.post(
   },
 );
 
-const updateDocumentSchema = z.object({
-  date: z.coerce.date().optional(),
-  notes: z.string().optional(),
-  buyerName: z.string().optional(),
-  buyerPhone: z.string().optional(),
-  supplierId: z.string().optional().nullable(),
-  lines: z.array(lineSchema).min(1),
-});
-
-const updateInventorySchema = z.object({
-  date: z.coerce.date().optional(),
-  notes: z.string().optional(),
-  lines: z.array(inventoryLineSchema).min(1),
-});
-
 router.put(
   "/:id",
   requireRoles("MANAGER", "ADMIN"),
@@ -286,12 +244,9 @@ router.put(
       return;
     }
 
-    const isInventory = doc.type === DocumentType.INVENTORY;
-    const parsed = isInventory
-      ? updateInventorySchema.safeParse(req.body)
-      : updateDocumentSchema.safeParse(req.body);
+    const parsed = parseUpdateDocumentBody(doc.type, req.body);
     if (!parsed.success) {
-      res.status(400).json({ message: "Невірні дані", errors: parsed.error.flatten() });
+      res.status(400).json({ message: formatZodMessage(parsed.error), errors: parsed.error.flatten() });
       return;
     }
 
@@ -305,7 +260,7 @@ router.put(
           notes: data.notes,
           lines: { create: lines },
         };
-        if (isInventory) {
+        if (doc.type === DocumentType.INVENTORY) {
           return tx.document.update({
             where: { id: doc.id },
             data: base,
@@ -316,14 +271,41 @@ router.put(
             },
           });
         }
-        const docData = data as z.infer<typeof updateDocumentSchema>;
+        if (doc.type === DocumentType.RECEIPT) {
+          const receiptData = data as { supplierId: string };
+          return tx.document.update({
+            where: { id: doc.id },
+            data: { ...base, supplierId: receiptData.supplierId },
+            include: {
+              lines: { include: { product: { include: { stockBalance: true } } } },
+              supplier: true,
+              createdBy: { select: { fullName: true, email: true } },
+            },
+          });
+        }
+        if (doc.type === DocumentType.RESERVATION) {
+          const reservationData = data as { buyerName: string; buyerPhone: string };
+          return tx.document.update({
+            where: { id: doc.id },
+            data: {
+              ...base,
+              buyerName: reservationData.buyerName,
+              buyerPhone: reservationData.buyerPhone,
+            },
+            include: {
+              lines: { include: { product: { include: { stockBalance: true } } } },
+              supplier: true,
+              createdBy: { select: { fullName: true, email: true } },
+            },
+          });
+        }
+        const expenseData = data as { buyerName: string; buyerPhone?: string };
         return tx.document.update({
           where: { id: doc.id },
           data: {
             ...base,
-            buyerName: docData.buyerName,
-            buyerPhone: docData.buyerPhone,
-            supplierId: docData.supplierId ?? null,
+            buyerName: expenseData.buyerName,
+            buyerPhone: expenseData.buyerPhone ?? null,
           },
           include: {
             lines: { include: { product: { include: { stockBalance: true } } } },
