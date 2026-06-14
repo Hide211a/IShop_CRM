@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -41,6 +42,15 @@ const abcColor: Record<string, "success" | "warning" | "default"> = {
   A: "success",
   B: "warning",
   C: "default",
+};
+
+/** Вкладки, де звіт залежить від періоду «З — По». */
+const DATE_FILTER_TABS = new Set([1, 2, 3, 4]);
+
+const SNAPSHOT_TAB_HINT: Partial<Record<number, string>> = {
+  0: "Поточні залишки на складі — дати для цього звіту не застосовуються.",
+  5: "ABC-аналіз будується за поточними залишками та цінами закупівлі.",
+  6: "Критичний залишок — позиції нижче мінімуму на поточний момент.",
 };
 
 type StockReportRow = {
@@ -286,11 +296,13 @@ export function ReportsPage() {
       value: p.amount,
     })) ?? [];
 
+  const showDateFilter = DATE_FILTER_TABS.has(tab);
+  const snapshotHint = SNAPSHOT_TAB_HINT[tab];
+
   return (
     <Box>
       <PageHeader
         title="Звіти"
-        subtitle="Аналітика для директора"
         action={
           <Button size="small" variant="contained" startIcon={<DownloadIcon />} onClick={exportAll}>
             Експорт усіх CSV
@@ -305,11 +317,6 @@ export function ReportsPage() {
           change={periodComparison.data.change}
         />
       )}
-
-      <FilterBar>
-        <TextField type="date" label="З" value={from} onChange={(e) => setFrom(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-        <TextField type="date" label="По" value={to} onChange={(e) => setTo(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-      </FilterBar>
 
       <Tabs
         value={tab}
@@ -326,6 +333,34 @@ export function ReportsPage() {
         <Tab label="ABC" />
         <Tab label="Критичний залишок" />
       </Tabs>
+
+      {showDateFilter ? (
+        <FilterBar>
+          <TextField
+            type="date"
+            label="З"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+          <TextField
+            type="date"
+            label="По"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+          <Chip
+            size="small"
+            label={`Період: ${new Date(from).toLocaleDateString("uk-UA")} — ${new Date(to).toLocaleDateString("uk-UA")}`}
+            variant="outlined"
+          />
+        </FilterBar>
+      ) : snapshotHint ? (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {snapshotHint}
+        </Alert>
+      ) : null}
 
       {tab === 0 && (
         <ContentCard title="Залишки на складі" action={<Button size="small" variant="outlined" startIcon={<DownloadIcon />} onClick={() => exportStock()}>CSV</Button>} noPadding>

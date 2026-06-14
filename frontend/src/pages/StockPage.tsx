@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
@@ -26,10 +27,21 @@ import { PageHeader } from "../components/PageHeader";
 import { ProductDetailDrawer } from "../components/ProductDetailDrawer";
 import type { StockBalanceRow } from "../types";
 
+function StockStatusChip({ quantity, isLow }: { quantity: number; isLow: boolean }) {
+  if (quantity === 0) {
+    return <Chip label="Закінчився" color="error" size="small" />;
+  }
+  if (isLow) {
+    return <Chip label="Дозамовити" color="warning" size="small" />;
+  }
+  return <Chip label="Достатньо" color="success" size="small" />;
+}
+
 export function StockPage() {
+  const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [lowOnly, setLowOnly] = useState(false);
+  const lowOnly = params.get("lowOnly") === "1";
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -89,7 +101,19 @@ export function StockPage() {
           </Select>
         </FormControl>
         <FormControlLabel
-          control={<Switch checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} />}
+          control={
+            <Switch
+              checked={lowOnly}
+              onChange={(e) => {
+                setParams((prev) => {
+                  const next = new URLSearchParams(prev);
+                  if (e.target.checked) next.set("lowOnly", "1");
+                  else next.delete("lowOnly");
+                  return next;
+                }, { replace: true });
+              }}
+            />
+          }
           label="Лише низький залишок"
           sx={{ ml: { xs: 0, sm: 1 } }}
         />
@@ -129,11 +153,7 @@ export function StockPage() {
               <TableCell align="right" sx={{ fontWeight: 600 }}>{row.quantity}</TableCell>
               <TableCell align="right" sx={{ display: { xs: "none", sm: "table-cell" } }}>{row.minStock}</TableCell>
               <TableCell>
-                {row.isLow ? (
-                  <Chip label="Мало" color="warning" size="small" />
-                ) : (
-                  <Chip label="OK" color="success" size="small" variant="outlined" />
-                )}
+                <StockStatusChip quantity={row.quantity} isLow={row.isLow} />
               </TableCell>
             </TableRow>
           ))}

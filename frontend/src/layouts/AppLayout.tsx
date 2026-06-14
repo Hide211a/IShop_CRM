@@ -33,7 +33,7 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SmartphoneIcon from "@mui/icons-material/Smartphone";
 import { useAuth } from "../context/AuthContext";
-import { NotificationBanner } from "../components/NotificationBanner";
+import { NotificationBell } from "../components/NotificationBell";
 import type { Role } from "../types";
 import { roleLabels } from "../utils/labels";
 
@@ -222,6 +222,7 @@ export function AppLayout() {
               {currentPage}
             </Typography>
           </Box>
+          <NotificationBell />
           {!isMobile && user && (
             <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }} noWrap>
               {user.fullName}
@@ -276,7 +277,6 @@ export function AppLayout() {
       >
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }} />
         <Box sx={{ px: { xs: 2, sm: 3 }, pb: { xs: 3, sm: 4 }, pt: { xs: 1, sm: 0 } }}>
-          <NotificationBanner />
           <Outlet />
         </Box>
       </Box>

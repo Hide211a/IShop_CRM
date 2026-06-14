@@ -41,23 +41,23 @@ export function DashboardPage() {
       <PageHeader title="Огляд складу" subtitle="Зведена аналітика для директора" />
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: "flex" }}>
           <StatCard title="Активних товарів" value={data.productCount} icon={<CategoryIcon />} onClick={() => navigate("/stock")} />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: "flex" }}>
           <StatCard title="Одиниць на складі" value={data.totalUnits} icon={<InventoryIcon />} accent="info" onClick={() => navigate("/stock")} />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: "flex" }}>
           <StatCard
             title="Низький залишок"
             value={data.lowStockCount}
             subtitle="позицій на або нижче мінімуму"
             icon={<WarningAmberIcon />}
             highlight={data.lowStockCount > 0}
-            onClick={() => navigate("/stock")}
+            onClick={() => navigate("/stock?lowOnly=1")}
           />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: "flex" }}>
           <StatCard
             title="Продажів цього місяця"
             value={data.salesThisMonth}

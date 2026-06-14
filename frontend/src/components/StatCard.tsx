@@ -19,9 +19,10 @@ interface Props {
   accent?: Accent;
   onClick?: () => void;
   highlight?: boolean;
+  footer?: ReactNode;
 }
 
-export function StatCard({ title, value, subtitle, icon, accent = "primary", onClick, highlight }: Props) {
+export function StatCard({ title, value, subtitle, icon, accent = "primary", onClick, highlight, footer }: Props) {
   const colors = accentMap[highlight ? "warning" : accent];
 
   return (
@@ -40,6 +41,8 @@ export function StatCard({ title, value, subtitle, icon, accent = "primary", onC
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
       sx={{
+        height: "100%",
+        width: "100%",
         cursor: onClick ? "pointer" : "default",
         transition: "transform 0.15s ease, box-shadow 0.15s ease",
         ...(highlight && { borderColor: alpha("#F59E0B", 0.35), bgcolor: alpha("#F59E0B", 0.04) }),
@@ -51,9 +54,15 @@ export function StatCard({ title, value, subtitle, icon, accent = "primary", onC
         }),
       }}
     >
-      <CardContent sx={{ p: { xs: 2, sm: 2.5 }, "&:last-child": { pb: { xs: 2, sm: 2.5 } } }}>
-        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
-          <Box sx={{ minWidth: 0 }}>
+      <CardContent
+        sx={{
+          p: { xs: 2, sm: 2.5 },
+          height: "100%",
+          "&:last-child": { pb: { xs: 2, sm: 2.5 } },
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, height: "100%" }}>
+          <Box sx={{ minWidth: 0, flex: 1, display: "flex", flexDirection: "column" }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
               {title}
             </Typography>
@@ -68,11 +77,19 @@ export function StatCard({ title, value, subtitle, icon, accent = "primary", onC
             >
               {value}
             </Typography>
-            {subtitle && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                {subtitle}
-              </Typography>
-            )}
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                display: "block",
+                mt: 0.5,
+                minHeight: "2.5em",
+                lineHeight: 1.25,
+                visibility: subtitle ? "visible" : "hidden",
+              }}
+            >
+              {subtitle ?? "—"}
+            </Typography>
           </Box>
           {icon && (
             <Box
@@ -92,6 +109,18 @@ export function StatCard({ title, value, subtitle, icon, accent = "primary", onC
             </Box>
           )}
         </Box>
+        {footer && (
+          <Box
+            sx={{
+              mt: 1.5,
+              pt: 1.25,
+              borderTop: "1px solid",
+              borderColor: alpha("#0F172A", 0.08),
+            }}
+          >
+            {footer}
+          </Box>
+        )}
       </CardContent>
     </Card>
   );

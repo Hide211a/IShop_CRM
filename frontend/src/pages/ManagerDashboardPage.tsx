@@ -85,7 +85,7 @@ export function ManagerDashboardPage() {
       )}
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 6, md: 3 }}>
+        <Grid size={{ xs: 6, md: 3 }} sx={{ display: "flex" }}>
           <StatCard
             title="Чернетки"
             value={data.draftCount}
@@ -94,7 +94,7 @@ export function ManagerDashboardPage() {
             onClick={() => navigate("/documents?status=DRAFT")}
           />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
+        <Grid size={{ xs: 6, md: 3 }} sx={{ display: "flex" }}>
           <StatCard
             title="Операцій сьогодні"
             value={data.todayPosted.length}
@@ -103,16 +103,16 @@ export function ManagerDashboardPage() {
             onClick={() => navigate("/documents")}
           />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
+        <Grid size={{ xs: 6, md: 3 }} sx={{ display: "flex" }}>
           <StatCard
             title="Низький залишок"
             value={data.lowStockCount}
             icon={<WarningAmberIcon />}
             highlight={data.lowStockCount > 0}
-            onClick={() => navigate("/stock")}
+            onClick={() => navigate("/stock?lowOnly=1")}
           />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
+        <Grid size={{ xs: 6, md: 3 }} sx={{ display: "flex" }}>
           <StatCard
             title="Активні резерви"
             value={data.activeReservations}
